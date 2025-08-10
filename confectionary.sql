@@ -2,11 +2,10 @@
 -- Implements table, sample data, and reporting queries for business scenario
 
 -- 1. Schema ---------------------------------------------------------------
-IF OBJECT_ID('dbo.Orders', 'U') IS NOT NULL
-    DROP TABLE dbo.Orders;
+DROP TABLE IF EXISTS dbo.[Order];
 GO
 
-CREATE TABLE dbo.Orders (
+CREATE TABLE dbo.[Order] (
     OrderID      INT IDENTITY(1,1) PRIMARY KEY,
     CustomerName NVARCHAR(100) NOT NULL,
     Branch       NVARCHAR(50)  NOT NULL,
@@ -37,12 +36,25 @@ CREATE TABLE dbo.Orders (
             WHEN 'Cookie' THEN 3.50
                          + CASE WHEN HasPicture = 1 THEN 1.50 ELSE 0 END
         END))
-        PERSISTED
+        PERSISTED,
+    CONSTRAINT CHK_Item CHECK (Item IN ('Cake', 'Cookie', 'Cupcake')),
+    CONSTRAINT CHK_Base CHECK (
+        (Item = 'Cookie' AND Base = 'Sugar') OR
+        (Item IN ('Cake', 'Cupcake') AND Base IN (
+            'Chocolate', 'Vanilla', 'Coconut', 'Chocolate peanut butter', 'Banana', 'Strawberry shortcake'
+        ))
+    ),
+    CONSTRAINT CHK_Amount CHECK (
+        (Item = 'Cookie' AND Amount BETWEEN 24 AND 500) OR
+        (Item = 'Cupcake' AND Amount BETWEEN 12 AND 500) OR
+        (Item = 'Cake' AND Amount >= 1)
+    ),
+    CONSTRAINT CHK_HasPicture CHECK (Item <> 'Cupcake' OR HasPicture = 0)
 );
 GO
 
 -- 2. Sample Data ---------------------------------------------------------
-INSERT INTO dbo.Orders
+INSERT INTO dbo.[Order]
     (CustomerName, Branch, OrderDate, Base, Item, Topping, HasPicture, Specifics, Occasion, Amount)
 VALUES
     ('Chaim Green',        'Lakewood', '2022-01-04', 'Strawberry shortcake', 'Cake',   NULL,         0, 'Please make sure they both look the same', 'Baby',            2),
@@ -75,7 +87,7 @@ GO
 
 -- Report 1: Sum of how many of each type of product and base sold per branch
 SELECT Branch, Item, Base, SUM(Amount) AS TotalSold
-FROM dbo.Orders
+FROM dbo.[Order]
 GROUP BY Branch, Item, Base
 ORDER BY Branch, Item, Base;
 GO
@@ -91,7 +103,7 @@ SELECT
     Occasion,
     Branch,
     COUNT(*) AS Orders
-FROM dbo.Orders
+FROM dbo.[Order]
 GROUP BY CASE
             WHEN MONTH(OrderDate) IN (7,8) THEN 'Summer'
             WHEN MONTH(OrderDate) IN (9,10) THEN 'Holiday time'
@@ -109,7 +121,7 @@ SELECT
     MONTH(OrderDate) AS [Month],
     Branch,
     SUM(TotalPrice) AS Revenue
-FROM dbo.Orders
+FROM dbo.[Order]
 GROUP BY YEAR(OrderDate), MONTH(OrderDate), Branch
 ORDER BY [Year], [Month], Branch;
 GO
@@ -120,13 +132,13 @@ SELECT
     MONTH(OrderDate) AS [Month],
     Branch,
     COUNT(*) AS Orders
-FROM dbo.Orders
+FROM dbo.[Order]
 GROUP BY YEAR(OrderDate), MONTH(OrderDate), Branch
 ORDER BY [Year], [Month], Branch;
 GO
 
 -- Earliest order date ----------------------------------------------------
 SELECT MIN(OrderDate) AS EarliestOrder
-FROM dbo.Orders;
+FROM dbo.[Order];
 GO
 
